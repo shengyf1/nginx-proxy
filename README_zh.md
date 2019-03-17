@@ -198,38 +198,21 @@ $ docker run --volumes-from nginx \
 
     $ docker run -d -p 80:80 -p 443:443 -v /path/to/certs:/etc/nginx/certs -v /var/run/docker.sock:/tmp/docker.sock:ro jwilder/nginx-proxy
 
-The contents of `/path/to/certs` should contain the certificates and private keys for any virtual
-hosts in use.  The certificate and keys should be named after the virtual host with a `.crt` and
-`.key` extension.  For example, a container with `VIRTUAL_HOST=foo.bar.com` should have a
-`foo.bar.com.crt` and `foo.bar.com.key` file in the certs directory.
+`/path/to/certs`目录中应包含正在使用的任何虚拟主机的证书和私钥。证书和密钥应以虚拟主机为文件名并使用.crt和.key扩展名。例如，具有`VIRTUAL_HOST=foo.bar.com`的容器应该在certs目录中包含`foo.bar.com.crt` 和 `foo.bar.com.key`文件。
 
-If you are running the container in a virtualized environment (Hyper-V, VirtualBox, etc...),
-/path/to/certs must exist in that environment or be made accessible to that environment.
-By default, Docker is not able to mount directories on the host machine to containers running in a virtual machine.
+如果您在虚拟化环境（Hyper-V，VirtualBox等）中运行容器，则/path/to/certs必须存在于虚拟机中或可被虚拟机访问的宿主机目录。默认情况下，Docker无法物理机的目录装载到虚拟机中运行的容器。
 
 #### Diffie-Hellman Groups
 
-Diffie-Hellman groups are enabled by default, with a pregenerated key in `/etc/nginx/dhparam/dhparam.pem`.
-You can mount a different `dhparam.pem` file at that location to override the default cert.
-To use custom `dhparam.pem` files per-virtual-host, the files should be named after the virtual host with a
-`dhparam` suffix and `.pem` extension. For example, a container with `VIRTUAL_HOST=foo.bar.com`
-should have a `foo.bar.com.dhparam.pem` file in the `/etc/nginx/certs` directory.
+Diffie-Hellman组默认是启用的，并在`/etc/nginx/dhparam/dhparam.pem`中使用预生成的密钥。您可以在该位置挂载其他的`dhparam.pem`文件来覆盖默认证书。
+要为每个虚拟主机使用自定义的`dhparam.pem` 文件，文件应以虚拟主机域名为文件名且具有`dhparam`后缀和`.pem`。例如，具有`VIRTUAL_HOST=foo.bar.com`的容器应在`/etc/nginx/certs`目录中包含一个`foo.bar.com.dhparam.pem`文件。
 
-> NOTE: If you don't mount a `dhparam.pem` file at `/etc/nginx/dhparam/dhparam.pem`, one will be generated
-at startup.  Since it can take minutes to generate a new `dhparam.pem`, it is done at low priority in the
-background.  Once generation is complete, the `dhparam.pem` is saved on a persistent volume and nginx
-is reloaded.  This generation process only occurs the first time you start `nginx-proxy`.
+> 注意: 如果没有挂载自定义的`dhparam.pem`文件, 则在启动时会自动生成一个。由于生成新的`dhparam.pem`可能需要几分钟，因此它在后台以低优先级完成。生成完成后，`dhparam.pem`将保存在持久卷上，并重新加载nginx。此生成过程仅在您第一次启动nginx-proxy时发生。
 
-> COMPATIBILITY WARNING: The default generated `dhparam.pem` key is 2048 bits for A+ security.  Some
-> older clients (like Java 6 and 7) do not support DH keys with over 1024 bits.  In order to support these
-> clients, you must either provide your own `dhparam.pem`, or tell `nginx-proxy` to generate a 1024-bit
-> key on startup by passing `-e DHPARAM_BITS=1024`.
+> 兼容性警告：对于A级安全性，默认生成的`dhparam.pem`密钥为2048位。一些较旧的客户端（如Java 6和7）不支持超过1024位的DH密钥。为了支持这些客户端，您必须提供自己的`dhparam.pem`，或者通过传递`-e DHPARAM_BITS=1024`告诉nginx-proxy在启动时生成1024位密钥。
 
-In the separate container setup, no pregenerated key will be available and neither the
-[jwilder/docker-gen](https://index.docker.io/u/jwilder/docker-gen/) image nor the offical
-[nginx](https://registry.hub.docker.com/_/nginx/) image will generate one. If you still want A+ security
-in a separate container setup, you'll have to generate a 2048 bits DH key file manually and mount it on the
-nginx container, at `/etc/nginx/dhparam/dhparam.pem`.
+在独立容器设置中，没有预生成的密钥可用，并且[jwilder/docker-gen](https://index.docker.io/u/jwilder/docker-gen/)镜像和官方[nginx](https://registry.hub.docker.com/_/nginx/)图像都不会生成一个。如果您仍然希望在独立容器设置中使用A+级安全性，则必须手动生成2048位DH密钥文件并将其挂载在nginx容器的`/etc/nginx/dhparam/dhparam.pem`目录。
+
 
 #### Wildcard Certificates
 
