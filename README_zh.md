@@ -146,13 +146,9 @@ than a socket and expose that port.
 
 ### 独立容器
 
-nginx-proxy还可以 can also be run as two separate containers using the [jwilder/docker-gen](https://index.docker.io/u/jwilder/docker-gen/)
-image and the official [nginx](https://registry.hub.docker.com/_/nginx/) image.
+nginx-proxy也可以使用[jwilder/docker-gen](https://index.docker.io/u/jwilder/docker-gen/)镜像和官方[nginx](https://registry.hub.docker.com/_/nginx/)镜像来作为两个独立的容器运行。 
 
-nginx-proxy can also be run as two separate containers using the [jwilder/docker-gen](https://index.docker.io/u/jwilder/docker-gen/)
-image and the official [nginx](https://registry.hub.docker.com/_/nginx/) image.
-
-You may want to do this to prevent having the docker socket bound to a publicly exposed container service.
+您可能希望这样做以防止将docker套接字绑定到公开暴露的容器服务。
 
 可以使用docker-compose来演示这种用法:
 
@@ -162,7 +158,7 @@ $ curl -H "Host: whoami.local" localhost
 I'm 5b129ab83266
 ```
 
-To run nginx proxy as a separate container you'll need to have [nginx.tmpl](https://github.com/jwilder/nginx-proxy/blob/master/nginx.tmpl) on your host system.
+要作为独立容器运行，需要在您主机上有[nginx.tmpl](https://github.com/jwilder/nginx-proxy/blob/master/nginx.tmpl) 文件。
 
 首先带一个volume来启动nginx:
 
@@ -214,82 +210,51 @@ Diffie-Hellman组默认是启用的，并在`/etc/nginx/dhparam/dhparam.pem`中�
 在独立容器设置中，没有预生成的密钥可用，并且[jwilder/docker-gen](https://index.docker.io/u/jwilder/docker-gen/)镜像和官方[nginx](https://registry.hub.docker.com/_/nginx/)图像都不会生成一个。如果您仍然希望在独立容器设置中使用A+级安全性，则必须手动生成2048位DH密钥文件并将其挂载在nginx容器的`/etc/nginx/dhparam/dhparam.pem`目录。
 
 
-#### Wildcard Certificates
+#### 通配符证书
 
-Wildcard certificates and keys should be named after the domain name with a `.crt` and `.key` extension.
-For example `VIRTUAL_HOST=foo.bar.com` would use cert name `bar.com.crt` and `bar.com.key`.
+通配符证书和密钥应以域名命名，扩展名为`.crt`和`.key`。例如，`VIRTUAL_HOST=foo.bar.com`将使用证书名称`bar.com.crt`和`bar.com.key`。
+
 
 #### SNI
 
-If your certificate(s) supports multiple domain names, you can start a container with `CERT_NAME=<name>`
-to identify the certificate to be used.  For example, a certificate for `*.foo.com` and `*.bar.com`
-could be named `shared.crt` and `shared.key`.  A container running with `VIRTUAL_HOST=foo.bar.com`
-and `CERT_NAME=shared` will then use this shared cert.
+如果您的证书支持多域名，则可以使用参数`CERT_NAME=<name>`启动容器以指明要使用的证书。例如，`*.foo.com`和 `*.bar.com`的证书可以命名为`shared.crt`和`shared.key`。使用参数`VIRTUAL_HOST=foo.bar.com`和`CERT_NAME=shared`运行的容器将使用此共享证书。
 
-#### OCSP Stapling
-To enable OCSP Stapling for a domain, `nginx-proxy` looks for a PEM certificate containing the trusted
-CA certificate chain at `/etc/nginx/certs/<domain>.chain.pem`, where `<domain>` is the domain name in
-the `VIRTUAL_HOST` directive.  The format of this file is a concatenation of the public PEM CA
-certificates starting with the intermediate CA most near the SSL certificate, down to the root CA.  This is
-often referred to as the "SSL Certificate Chain".  If found, this filename is passed to the NGINX
-[`ssl_trusted_certificate` directive](http://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_trusted_certificate)
-and OCSP Stapling is enabled.
 
-#### How SSL Support Works
+#### OCSP装订
 
-The default SSL cipher configuration is based on the [Mozilla intermediate profile](https://wiki.mozilla.org/Security/Server_Side_TLS#Intermediate_compatibility_.28default.29) which
-should provide compatibility with clients back to Firefox 1, Chrome 1, IE 7, Opera 5, Safari 1,
-Windows XP IE8, Android 2.3, Java 7.  Note that the DES-based TLS ciphers were removed for security.
-The configuration also enables HSTS, PFS, OCSP stapling and SSL session caches.  Currently TLS 1.0, 1.1 and 1.2
-are supported.  TLS 1.0 is deprecated but its end of life is not until June 30, 2018.  It is being
-included because the following browsers will stop working when it is removed: Chrome < 22, Firefox < 27,
-IE < 11, Safari < 7, iOS < 5, Android Browser < 5.
+OCSP装订（英语：OCSP Stapling），正式名称为TLS证书状态查询扩展，可代替在线证书状态协议（OCSP）来查询X.509证书的状态。服务器在TLS握手时发送事先缓存的OCSP响应，用户只需验证该响应的有效性而不用再向数字证书认证机构（CA）发送请求。
+要为域启用OCSP Stapling，`nginx-proxy`将在`/etc/nginx/certs/<domain>.chain.pem`中查找包含可信CA证书链的PEM证书，`VIRTUAL_HOST`指令中的`<domain>`是域名。 。此文件的格式是公共PEM CA证书的串联，从最靠近SSL证书的中间CA开始，一直到根CA。这通常被称为“SSL证书链”。如果找到，则将此文件名传递给NGINX [`ssl_trusted_certificate` directive](http://nginx.org/en/docs/http/ngx_http_ssl_module.html#ssl_trusted_certificate)并启用OCSP Stapling。
 
-If you don't require backward compatibility, you can use the [Mozilla modern profile](https://wiki.mozilla.org/Security/Server_Side_TLS#Modern_compatibility)
-profile instead by including the environment variable `SSL_POLICY=Mozilla-Modern` to your container.
-This profile is compatible with clients back to Firefox 27, Chrome 30, IE 11 on Windows 7,
-Edge, Opera 17, Safari 9, Android 5.0, and Java 8.
 
-Other policies available through the `SSL_POLICY` environment variable are [`Mozilla-Old`](https://wiki.mozilla.org/Security/Server_Side_TLS#Old_backward_compatibility)
-and the [AWS ELB Security Policies](https://docs.aws.amazon.com/elasticloadbalancing/latest/classic/elb-security-policy-table.html)
-`AWS-TLS-1-2-2017-01`, `AWS-TLS-1-1-2017-01`, `AWS-2016-08`, `AWS-2015-05`, `AWS-2015-03` and `AWS-2015-02`.
+#### SSL支持是如何工作的
 
-Note that the `Mozilla-Old` policy should use a 1024 bits DH key for compatibility but this container generates
-a 2048 bits key. The [Diffie-Hellman Groups](#diffie-hellman-groups) section details different methods of bypassing
-this, either globally or per virtual-host.
+默认的SSL密码配置基于[Mozilla intermediate profile](https://wiki.mozilla.org/Security/Server_Side_TLS#Intermediate_compatibility_.28default.29)，该配置文件应提供与Firefox 1, Chrome 1, IE 7, Opera 5, Safari 1,
+Windows XP IE8, Android 2.3, Java 7的客户端兼容性。请注意，为了安全起见，删除了基于DES的TLS密码。该配置还支持HSTS，PFS，OCSP装订和SSL会话缓存。目前支持TLS 1.0,1.1和1.2。 TLS 1.0已被弃用，但它的使用寿命截止日期为2018年6月30日。由于浏览器 Chrome <22，Firefox <27，IE <11，Safari <7，iOS <5，Android 浏览器<5 还依赖TLS 1.0，所以TLS 1.0还包含在内。
 
-The default behavior for the proxy when port 80 and 443 are exposed is as follows:
+如果您不需要向后兼容性，则可以通过设置参数`SSL_POLICY=Mozilla-Modern`使用[Mozilla modern profile](https://wiki.mozilla.org/Security/Server_Side_TLS#Modern_compatibility)配置文件。此配置文件支持Firefox 27, Chrome 30, Windows 7中的IE 11,
+Edge, Opera 17, Safari 9, Android 5.0, 和Java 8。
 
-* If a container has a usable cert, port 80 will redirect to 443 for that container so that HTTPS
-is always preferred when available.
-* If the container does not have a usable cert, a 503 will be returned.
+通过环境变量`SSL_POLICY`提供的其他策略是[`Mozilla-Old`](https://wiki.mozilla.org/Security/Server_Side_TLS#Old_backward_compatibility)和[AWS ELB Security Policies](https://docs.aws.amazon.com/elasticloadbalancing/latest/classic/elb-security-policy-table.html)`AWS-TLS-1-2-2017-01`, `AWS-TLS-1-1-2017-01`, `AWS-2016-08`, `AWS-2015-05`, `AWS-2015-03`和`AWS-2015-02`。
 
-Note that in the latter case, a browser may get an connection error as no certificate is available
-to establish a connection.  A self-signed or generic cert named `default.crt` and `default.key`
-will allow a client browser to make a SSL connection (likely w/ a warning) and subsequently receive
-a 500.
+请注意，`Mozilla-Old`策略应使用1024位DH密钥以实现兼容性，但此容器生成2048位密钥。 [Diffie-Hellman Groups](#diffie-hellman-groups) 节详细介绍了绕过此方法的不同方法，无论是全局还是每个虚拟主机。 
 
-To serve traffic in both SSL and non-SSL modes without redirecting to SSL, you can include the
-environment variable `HTTPS_METHOD=noredirect` (the default is `HTTPS_METHOD=redirect`).  You can also
-disable the non-SSL site entirely with `HTTPS_METHOD=nohttp`, or disable the HTTPS site with
-`HTTPS_METHOD=nohttps`. `HTTPS_METHOD` must be specified on each container for which you want to
-override the default behavior.  If `HTTPS_METHOD=noredirect` is used, Strict Transport Security (HSTS)
-is disabled to prevent HTTPS users from being redirected by the client.  If you cannot get to the HTTP
-site after changing this setting, your browser has probably cached the HSTS policy and is automatically
-redirecting you back to HTTPS.  You will need to clear your browser's HSTS cache or use an incognito
-window / different browser.
+暴露端口80和443时代理的默认行为如下：
 
-By default, [HTTP Strict Transport Security (HSTS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security) 
-is enabled with `max-age=31536000` for HTTPS sites.  You can disable HSTS with the environment variable 
-`HSTS=off` or use a custom HSTS configuration like `HSTS=max-age=31536000; includeSubDomains; preload`.  
-*WARNING*: HSTS will force your users to visit the HTTPS version of your site for the `max-age` time - 
-even if they type in `http://` manually.  The only way to get to an HTTP site after receiving an HSTS 
-response is to clear your browser's HSTS cache.
+* 如果容器具有可用的证书，则端口80将重定向到该容器的443，以便在可用时始终首选HTTPS。
 
-### Basic Authentication Support
+* 如果容器没有可用的证书，则返回503。
 
-In order to be able to secure your virtual host, you have to create a file named as its equivalent VIRTUAL_HOST variable on directory
-/etc/nginx/htpasswd/$VIRTUAL_HOST
+请注意，在后一种情况下，浏览器可能会收到连接错误，因为没有可用于建立连接的证书。名为`default.crt` 和`default.key`的自签名或通用证书将允许客户端浏览器建立SSL连接（可能带有警告），然后接收500错误。
+
+要在SSL和非SSL模式下提供流量而不重定向到SSL，您可以包括环境变量`HTTPS_METHOD=noredirect`（默认为`HTTPS_METHOD=redirect`）。您还可以使用`HTTPS_METHOD=nohttp`完全禁用非SSL站点，或使用`HTTPS_METHOD=nohttps`禁用HTTPS站点。必须在要覆盖默认行为的每个容器上指定`HTTPS_METHOD`。如果使用了`HTTPS_METHOD=noredirect`，则禁用严格传输安全性（HSTS）以防止HTTPS用户被客户端重定向。如果在更改此设置后无法访问HTTP站点，则浏览器可能已缓存HSTS策略并自动将您重定向回HTTPS。您需要清除浏览器的HSTS缓存或使用隐身窗口或另开其他浏览器。
+
+对于HTTPS站点，默认启用[HTTP Strict Transport Security (HSTS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security) 且`max-age=31536000`。您可以使用环境变量`HSTS=off`禁用HSTS，或使用诸如`HSTS=max-age=31536000; includeSubDomains; preload`的自定义HSTS配置。 
+*WARNING*：HSTS将强制您的用户访问您网站的HTTPS版本达到最长时间 - 即使他们手动输入`http://`。收到HSTS响应后进入HTTP站点的唯一方法是清除浏览器的HSTS缓存。
+
+
+### 基本认证支持
+
+为了能够保护您的虚拟主机，您必须在目录/etc/nginx/htpasswd/$VIRTUAL_HOST上创建一个名称为`VIRTUAL_HOST`变量值的文件。
 
 ```
 $ docker run -d -p 80:80 -p 443:443 \
@@ -299,16 +264,18 @@ $ docker run -d -p 80:80 -p 443:443 \
     jwilder/nginx-proxy
 ```
 
-You'll need apache2-utils on the machine where you plan to create the htpasswd file. Follow these [instructions](http://httpd.apache.org/docs/2.2/programs/htpasswd.html)
+您如果计划要创建建htpasswd文件，则需要主机上有apache2-utils。请遵循[instructions](http://httpd.apache.org/docs/2.2/programs/htpasswd.html)
 
-### Custom Nginx Configuration
 
-If you need to configure Nginx beyond what is possible using environment variables, you can provide custom configuration files on either a proxy-wide or per-`VIRTUAL_HOST` basis.
+### 自定义Nginx配置
 
-#### Replacing default proxy settings
+如果使用环境变量不满足您定制nginx的需求，您可以在代理范围或每个`VIRTUAL_HOST`基础上提供自定义配置文件。
 
-If you want to replace the default proxy settings for the nginx container, add a configuration file at `/etc/nginx/proxy.conf`. A file with the default settings would
-look like this:
+
+#### 替换默认代理设置
+
+如果要替换nginx容器的默认代理设置，请在`/etc/nginx/proxy.conf`中添加配置文件。一个具有默认设置的文件如下所示：
+
 
 ```Nginx
 # HTTP 1.1 support
@@ -327,15 +294,15 @@ proxy_set_header X-Forwarded-Port $proxy_x_forwarded_port;
 proxy_set_header Proxy "";
 ```
 
-***NOTE***: If you provide this file it will replace the defaults; you may want to check the .tmpl file to make sure you have all of the needed options.
+***注意***：如果您提供此文件，它将替换默认值；您可能需要检查.tmpl文件以确保已经包含了所有必需的选项。 
 
-***NOTE***: The default configuration blocks the `Proxy` HTTP request header from being sent to downstream servers.  This prevents attackers from using the so-called [httpoxy attack](http://httpoxy.org).  There is no legitimate reason for a client to send this header, and there are many vulnerable languages / platforms (`CVE-2016-5385`, `CVE-2016-5386`, `CVE-2016-5387`, `CVE-2016-5388`, `CVE-2016-1000109`, `CVE-2016-1000110`, `CERT-VU#797896`).
+***注意***：默认配置阻止将`Proxy`HTTP请求头发送到下游服务器。这可以防止攻击者使用所谓的[httpoxy attack](http://httpoxy.org)。客户端没有合理的理由发送此标头，并且有许多易受攻击的语言或平台(`CVE-2016-5385`, `CVE-2016-5386`, `CVE-2016-5387`, `CVE-2016-5388`, `CVE-2016-1000109`, `CVE-2016-1000110`, `CERT-VU#797896`)。
 
-#### Proxy-wide
+#### 代理范围
 
-To add settings on a proxy-wide basis, add your configuration file under `/etc/nginx/conf.d` using a name ending in `.conf`.
+要在代理范围内添加设置，请在`/etc/nginx/conf.d`下添加以以`.conf`结尾的配置文件。 
 
-This can be done in a derived image by creating the file in a `RUN` command or by `COPY`ing the file into `conf.d`:
+这可以在派生镜像中通过在`RUN`命令中创建文件或将文件`COPY`到conf.d`中：
 
 ```Dockerfile
 FROM jwilder/nginx-proxy
@@ -345,77 +312,74 @@ RUN { \
     } > /etc/nginx/conf.d/my_proxy.conf
 ```
 
-Or it can be done by mounting in your custom configuration in your `docker run` command:
+或者可以通过在`docker run`命令中挂载自定义配置来完成：
 
     $ docker run -d -p 80:80 -p 443:443 -v /path/to/my_proxy.conf:/etc/nginx/conf.d/my_proxy.conf:ro -v /var/run/docker.sock:/tmp/docker.sock:ro jwilder/nginx-proxy
 
 #### Per-VIRTUAL_HOST
 
-To add settings on a per-`VIRTUAL_HOST` basis, add your configuration file under `/etc/nginx/vhost.d`. Unlike in the proxy-wide case, which allows multiple config files with any name ending in `.conf`, the per-`VIRTUAL_HOST` file must be named exactly after the `VIRTUAL_HOST`.
+要在每个`VIRTUAL_HOST`添加设置，请在`/etc/nginx/vhost.d`下添加配置文件。与代理范围的情况不同，后者允许多个以`.conf`结尾的配置文件，每个`VIRTUAL_HOST`文件必须在`VIRTUAL_HOST`之后完全命名。
 
-In order to allow virtual hosts to be dynamically configured as backends are added and removed, it makes the most sense to mount an external directory as `/etc/nginx/vhost.d` as opposed to using derived images or mounting individual configuration files.
+为了允许动态添加和删除后端配置应用虚拟主机，最好将目录`/etc/nginx/vhost.d`映射到宿主机目录，而不是使用派生镜像或挂载单个配置文件。
 
-For example, if you have a virtual host named `app.example.com`, you could provide a custom configuration for that host as follows:
+例如，如果您有一个名为`app.example.com`的虚拟主机，则可以为该主机提供自定义配置，如下所示：
 
     $ docker run -d -p 80:80 -p 443:443 -v /path/to/vhost.d:/etc/nginx/vhost.d:ro -v /var/run/docker.sock:/tmp/docker.sock:ro jwilder/nginx-proxy
     $ { echo 'server_tokens off;'; echo 'client_max_body_size 100m;'; } > /path/to/vhost.d/app.example.com
 
-If you are using multiple hostnames for a single container (e.g. `VIRTUAL_HOST=example.com,www.example.com`), the virtual host configuration file must exist for each hostname. If you would like to use the same configuration for multiple virtual host names, you can use a symlink:
+如果您对单个容器使用多个主机名（例如`VIRTUAL_HOST=example.com,www.example.com`），则每个主机名必须存在对应的虚拟主机配置文件。如果要对多个虚拟主机名使用相同的配置，可以使用文件符号链接：
 
     $ { echo 'server_tokens off;'; echo 'client_max_body_size 100m;'; } > /path/to/vhost.d/www.example.com
     $ ln -s /path/to/vhost.d/www.example.com /path/to/vhost.d/example.com
 
-#### Per-VIRTUAL_HOST default configuration
+#### Per-VIRTUAL_HOST默认配置
 
-If you want most of your virtual hosts to use a default single configuration and then override on a few specific ones, add those settings to the `/etc/nginx/vhost.d/default` file. This file
-will be used on any virtual host which does not have a `/etc/nginx/vhost.d/{VIRTUAL_HOST}` file associated with it.
+如果您希望大多数虚拟主机使用默认单个配置，然后覆盖几个特定配置，请将这些设置添加到`/etc/nginx/vhost.d/default`文件中。此文件将用于任何没有与之关联的 `/etc/nginx/vhost.d/{VIRTUAL_HOST}`文件的虚拟主机。
 
-#### Per-VIRTUAL_HOST location configuration
+#### Per-VIRTUAL_HOST位置配置
 
-To add settings to the "location" block on a per-`VIRTUAL_HOST` basis, add your configuration file under `/etc/nginx/vhost.d`
-just like the previous section except with the suffix `_location`.
+要在每个`VIRTUAL_HOST`基础上将设置添加到"location"块，请在`/etc/nginx/vhost.d`下添加配置文件，就像上一节一样，但后缀为`_location`。 
 
-For example, if you have a virtual host named `app.example.com` and you have configured a proxy_cache `my-cache` in another custom file, you could tell it to use a proxy cache as follows:
+例如，如果您有一个名为`app.example.com`的虚拟主机，并且您已在另一个自定义文件中配置了proxy_cache`my-cache`，则可以如下方式使用代理缓存：
 
     $ docker run -d -p 80:80 -p 443:443 -v /path/to/vhost.d:/etc/nginx/vhost.d:ro -v /var/run/docker.sock:/tmp/docker.sock:ro jwilder/nginx-proxy
     $ { echo 'proxy_cache my-cache;'; echo 'proxy_cache_valid  200 302  60m;'; echo 'proxy_cache_valid  404 1m;' } > /path/to/vhost.d/app.example.com_location
 
-If you are using multiple hostnames for a single container (e.g. `VIRTUAL_HOST=example.com,www.example.com`), the virtual host configuration file must exist for each hostname. If you would like to use the same configuration for multiple virtual host names, you can use a symlink:
+如果您对单个容器使用多个主机名（例如`VIRTUAL_HOST=example.com,www.example.com`），则每个主机名必须存在虚拟主机配置文件。如果要对多个虚拟主机名使用相同的配置，可以使用符号链接：
 
     $ { echo 'proxy_cache my-cache;'; echo 'proxy_cache_valid  200 302  60m;'; echo 'proxy_cache_valid  404 1m;' } > /path/to/vhost.d/app.example.com_location
     $ ln -s /path/to/vhost.d/www.example.com /path/to/vhost.d/example.com
 
-#### Per-VIRTUAL_HOST location default configuration
+#### Per-VIRTUAL_HOST位置默认配置
 
-If you want most of your virtual hosts to use a default single `location` block configuration and then override on a few specific ones, add those settings to the `/etc/nginx/vhost.d/default_location` file. This file
-will be used on any virtual host which does not have a `/etc/nginx/vhost.d/{VIRTUAL_HOST}_location` file associated with it.
+如果您希望大多数虚拟主机使用默认的单个`location` 块配置，然后覆盖几个特定的​​位置，请将这些设置添加到`/etc/nginx/vhost.d/default_location`文件中。此文件将用于任何没有与之关联的`/etc/nginx/vhost.d/{VIRTUAL_HOST}_location`文件的虚拟主机。
 
-### Contributing
+### 贡献
 
-Before submitting pull requests or issues, please check github to make sure an existing issue or pull request is not already open.
+在提交拉取请求或issues之前，请检查github以确保issues或拉取请求尚未打开。
 
-#### Running Tests Locally
+#### 在本地运行测试
 
-To run tests, you need to prepare the docker image to test which must be tagged `jwilder/nginx-proxy:test`:
+要运行测试，您需要编译要测试的标签为`jwilder/nginx-proxy:test`的docker镜像：
 
     docker build -t jwilder/nginx-proxy:test .  # build the Debian variant image
 
-and call the [test/pytest.sh](test/pytest.sh) script.
+然后启用 [test/pytest.sh](test/pytest.sh) 脚本.
 
-Then build the Alpine variant of the image:
+要编译Alpine变体镜像：
 
     docker build -f Dockerfile.alpine -t jwilder/nginx-proxy:test .  # build the Alpline variant image
 
-and call the [test/pytest.sh](test/pytest.sh) script again.
+然后调用[test/pytest.sh](test/pytest.sh)脚本.
 
 
-If your system has the `make` command, you can automate those tasks by calling:
+如果你的系统有`make`，则可以调用:
 
     make test
 
+来自动化测试。
+您可以在[test/README.md](test/README.md)文件中了解有关测试套件如何工作以及如何编写新测试的更多信息。
 
-You can learn more about how the test suite works and how to write new tests in the [test/README.md](test/README.md) file.
+### 需要帮助?
 
-### Need help?
-
-If you have questions on how to use the image, please ask them on the [Q&A Group](https://groups.google.com/forum/#!forum/nginx-proxy)
+如果您对如何使用镜像有疑问，请在[Q&A Group](https://groups.google.com/forum/#!forum/nginx-proxy)提问
